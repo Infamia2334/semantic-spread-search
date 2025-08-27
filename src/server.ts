@@ -7,7 +7,9 @@ const fastify = Fastify({
     logger: true,
 });
 
-fastify.register(fastifyMultipart);
+fastify.register(fastifyMultipart, {
+    attachFieldsToBody: 'keyValues',
+});
 
 fastify.get("/health", () => {
     return "Server is Healthy";
