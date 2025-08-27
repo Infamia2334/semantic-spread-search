@@ -1,0 +1,32 @@
+{
+  "name": "semantic-spread-search",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.ts",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:dev": "ts-node src/server.ts",
+    "start": "tsc && node dist/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Infamia2334/semantic-spread-search.git"
+  },
+  "author": "Dipan Das",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Infamia2334/semantic-spread-search/issues"
+  },
+  "homepage": "https://github.com/Infamia2334/semantic-spread-search#readme",
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@fastify/multipart": "^9.0.3",
+    "fastify": "^5.5.0",
+    "fastify-cli": "^7.4.0"
+  }
+}
