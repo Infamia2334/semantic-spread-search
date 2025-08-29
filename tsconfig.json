@@ -41,5 +41,6 @@
     "emitDeclarationOnly": true,
     "allowImportingTsExtensions": true,
     "skipLibCheck": true,
+    "erasableSyntaxOnly": true,
   }
 }

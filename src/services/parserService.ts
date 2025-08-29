@@ -1,24 +1,28 @@
 import type { MultipartFile } from "@fastify/multipart";
-import type { ISearchAPIReq } from "../dto/api.dto.ts";
+import type { IMetadata, ISearchAPIReq } from "../dto/api.dto.ts";
 import xlsx from "xlsx";
 
-export class FileParser {
-    private file: MultipartFile;
-    private metadata: ISearchAPIReq
+export default class FileParser {
+    private file: Buffer;
+    private metadata: IMetadata
 
-    constructor (file: MultipartFile, metadata: ISearchAPIReq) {
+    constructor (file: Buffer, metadata: IMetadata) {
         this.file = file;
-        this.metadata = metadata;
+        this.metadata = metadata
     }
 
-    private async parseSheet() {
-        if (this.file.mimetype !== 'xlsx') {
+    async parseSheet() {
+        if (this.metadata.mimetype !== 'xlsx') {
             console.error("It is not a spreadsheet, terminating parsing");
+             throw new Error(`Invalid file type, parseSheet() was invoked on ${this.metadata.mimetype} file`);
         }
 
-        throw new Error(`Invalid file type, parseSheet() was invoked on ${this.file.mimetype} file`);
-
         const workbook = xlsx.read(this.file);
-        const sheets = workbook.SheetNames;
+
+        const sheetNames = workbook.SheetNames;
+        const worksheet = workbook.Sheets[sheetNames[0]];
+        const sheetsRawJson = xlsx.utils.sheet_to_json(worksheet);
+
+        return worksheet;
     }
 }
