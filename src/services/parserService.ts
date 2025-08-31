@@ -1,7 +1,8 @@
 import type { MultipartFile } from "@fastify/multipart";
 import type { IMetadata, ISearchAPIReq } from "../dto/api.dto.ts";
 import xlsx from "xlsx";
-import type { ISheetData } from "../dto/llm.dto.ts";
+import type { ISheetContext, ISheetData } from "../dto/llm.dto.ts";
+import { formatContextForLLM } from "../utils/formatter.ts";
 
 export default class FileParser {
     private file: Buffer;
@@ -12,7 +13,7 @@ export default class FileParser {
         this.metadata = metadata
     }
 
-    async parseSheet() {
+    async parseSheet(): Promise<ISheetContext[]> {
         if (this.metadata.mimetype !== 'xlsx') {
             console.error("It is not a spreadsheet, terminating parsing");
             throw new Error(`Invalid file type, parseSheet() was invoked on ${this.metadata.mimetype} file`);
@@ -22,19 +23,34 @@ export default class FileParser {
 
         const sheetNames = workbook.SheetNames;
 
-        const sheetsRawJson = sheetNames.map(sheetName => {
-            const worksheet = workbook.Sheets[sheetName];
+        const sheetsContext = sheetNames.map(sheetName => {
+            const worksheet = workbook.Sheets[sheetName]!;
 
             const data: ISheetData[] = [];
-            for (const cellIndex in worksheet) {
-                const cell = worksheet[cellIndex];
-                const value = cell.v as string;
-                const formula = cell.f as string;
-
-                const sheetData = { cell: cellIndex, value, formula, context: '' };
-                
-                data.push(sheetData);
-            }
+            const range = worksheet['!ref'];
+                if (range) {
+                  const { s, e } = xlsx.utils.decode_range(range);
+                  for (let row = s.r; row <= e.r; row++) {
+                    for (let col = s.c; col <= e.c; col++) {
+                      const cellAddress = xlsx.utils.encode_cell({
+                        r: row,
+                        c: col,
+                      });
+                      const cell = worksheet[cellAddress];
+                      if (cell) {
+                        const value = cell.v as string;
+                        const formula = cell.f as string;
+                        const sheetData = {
+                          cell: cellAddress,
+                          value,
+                          formula,
+                          context: "",
+                        };
+                        data.push(sheetData);
+                      }
+                    }
+                  }
+                }
             
             return {
                 sheetName,
@@ -44,6 +60,6 @@ export default class FileParser {
             }
         });
 
-        return sheetsRawJson;
+        return sheetsContext;
     }
 }

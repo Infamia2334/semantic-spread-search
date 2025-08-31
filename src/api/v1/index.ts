@@ -5,6 +5,7 @@ import type { FastifyPluginAsync } from "fastify";
 import FileParser from "../../services/parserService.ts";
 import { ApiError } from "../../customError/apiError.ts";
 import type { MultipartFile } from "@fastify/multipart";
+import { formatContextForLLM } from "../../utils/formatter.ts";
 
 // const fileSearchSchema = {
 //     consumes: ['multipart/form-data'],
@@ -42,9 +43,11 @@ const routes: FastifyPluginAsync = async (fastify: FastifyInstance, options: Fas
             const parserService = new FileParser(file, metadata);
             const parsedFile = await parserService.parseSheet();
 
+            const data = formatContextForLLM(parsedFile);
+
             return res.status(201).send({
                 status: "Success",
-                data: parsedFile,
+                data,
                 message: ""
             })            
         } catch (error: any) {
