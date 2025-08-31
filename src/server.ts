@@ -2,6 +2,9 @@ import Fastify from 'fastify';
 import getConfig from './config/config.ts';
 import apiV1 from './api/v1/index.ts';
 import fastifyMultipart from '@fastify/multipart';
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 const fastify = Fastify({
     logger: true,

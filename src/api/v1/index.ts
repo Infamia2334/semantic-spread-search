@@ -6,6 +6,8 @@ import FileParser from "../../services/parserService.ts";
 import { ApiError } from "../../customError/apiError.ts";
 import type { MultipartFile } from "@fastify/multipart";
 import { formatContextForLLM } from "../../utils/formatter.ts";
+import LLMService from "../../services/llmService.ts";
+import getConfig from "../../config/config.ts";
 
 // const fileSearchSchema = {
 //     consumes: ['multipart/form-data'],
@@ -27,7 +29,7 @@ import { formatContextForLLM } from "../../utils/formatter.ts";
 const routes: FastifyPluginAsync = async (fastify: FastifyInstance, options: FastifyPluginOptions) => {
     fastify.post("/search", async (req: FastifyRequest, res): Promise<ISearchAPIRes> => {
         try {
-            const { file , name, mimetype, size, createdAt, description} = req.body as any;
+            const { file , name, search, mimetype, size, createdAt, description} = req.body as any;
             const metadata = {
                 name,
                 mimetype,
@@ -41,9 +43,10 @@ const routes: FastifyPluginAsync = async (fastify: FastifyInstance, options: Fas
             //     throw apiError;
             // }
             const parserService = new FileParser(file, metadata);
-            const parsedFile = await parserService.parseSheet();
+            const sheetsContext = await parserService.parseSheet();
 
-            const data = formatContextForLLM(parsedFile);
+            const llmService = new LLMService(getConfig().GEMINI_API_KEY as string);
+            const data = await llmService.generateSemanticSearch(sheetsContext, search);
 
             return res.status(201).send({
                 status: "Success",
