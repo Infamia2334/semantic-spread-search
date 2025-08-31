@@ -5,61 +5,87 @@ import type { ISheetContext, ISheetData } from "../dto/llm.dto.ts";
 import { formatContextForLLM } from "../utils/formatter.ts";
 
 export default class FileParser {
-    private file: Buffer;
-    private metadata: IMetadata
+  private file: Buffer;
+  private metadata: IMetadata;
 
-    constructor (file: Buffer, metadata: IMetadata) {
-        this.file = file;
-        this.metadata = metadata
+  constructor(file: Buffer, metadata: IMetadata) {
+    this.file = file;
+    this.metadata = metadata;
+  }
+
+  async parseSheet(): Promise<ISheetContext[]> {
+    if (this.metadata.mimetype !== "xlsx") {
+      console.error("It is not a spreadsheet, terminating parsing");
+      throw new Error(
+        `Invalid file type, parseSheet() was invoked on ${this.metadata.mimetype} file`
+      );
     }
 
-    async parseSheet(): Promise<ISheetContext[]> {
-        if (this.metadata.mimetype !== 'xlsx') {
-            console.error("It is not a spreadsheet, terminating parsing");
-            throw new Error(`Invalid file type, parseSheet() was invoked on ${this.metadata.mimetype} file`);
+    const workbook = xlsx.read(this.file, { cellFormula: true });
+
+    const sheetNames = workbook.SheetNames;
+
+    const sheetsContext = sheetNames.map((sheetName) => {
+      const worksheet = workbook.Sheets[sheetName]!;
+      const data: ISheetData[] = [];
+      let headers: string[] = [];
+
+      const range = worksheet["!ref"];
+      if (range) {
+        const { s: start, e: end } = xlsx.utils.decode_range(range);
+
+        // --- 1. Find the first populated row to use as the header row ---
+        let headerRowIndex = -1;
+        for (let row = start.r; row <= end.r; row++) {
+          let isRowPopulated = false;
+          for (let col = start.c; col <= end.c; col++) {
+            const cell = worksheet[xlsx.utils.encode_cell({ r: row, c: col })];
+            if (cell && cell.v) {
+              isRowPopulated = true;
+              break; // Found content in this row, no need to check other columns
+            }
+          }
+          if (isRowPopulated) {
+            headerRowIndex = row;
+            break;
+          }
         }
 
-        const workbook = xlsx.read(this.file, { cellFormula: true });
+        if (headerRowIndex !== -1) {
+          for (let col = start.c; col <= end.c; col++) {
+            const cellAddress = xlsx.utils.encode_cell({
+              r: headerRowIndex,
+              c: col,
+            });
+            const cell = worksheet[cellAddress];
+            headers.push(cell && cell.v ? String(cell.v) : "");
+          }
 
-        const sheetNames = workbook.SheetNames;
-
-        const sheetsContext = sheetNames.map(sheetName => {
-            const worksheet = workbook.Sheets[sheetName]!;
-
-            const data: ISheetData[] = [];
-            const range = worksheet['!ref'];
-                if (range) {
-                  const { s, e } = xlsx.utils.decode_range(range);
-                  for (let row = s.r; row <= e.r; row++) {
-                    for (let col = s.c; col <= e.c; col++) {
-                      const cellAddress = xlsx.utils.encode_cell({
-                        r: row,
-                        c: col,
-                      });
-                      const cell = worksheet[cellAddress];
-                      if (cell) {
-                        const value = cell.v as string;
-                        const formula = cell.f as string;
-                        const sheetData = {
-                          cell: cellAddress,
-                          value,
-                          formula,
-                          context: "",
-                        };
-                        data.push(sheetData);
-                      }
-                    }
-                  }
-                }
-            
-            return {
-                sheetName,
-                summary: '',
-                headers: [''],
-                data,
+          for (let row = headerRowIndex + 1; row <= end.r; row++) {
+            for (let col = start.c; col <= end.c; col++) {
+              const cellAddress = xlsx.utils.encode_cell({ r: row, c: col });
+              const cell = worksheet[cellAddress];
+              if (cell) {
+                data.push({
+                  cell: cellAddress,
+                  value: cell.v as string,
+                  formula: cell.f as string,
+                  context: "",
+                });
+              }
             }
-        });
+          }
+        }
+      }
 
-        return sheetsContext;
-    }
+      return {
+        sheetName,
+        summary: "",
+        headers,
+        data,
+      };
+    });
+
+    return sheetsContext;
+  }
 }
